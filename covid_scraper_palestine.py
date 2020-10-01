@@ -30,6 +30,8 @@ from selenium.common.exceptions import \
     NoSuchElementException, TimeoutException, InvalidArgumentException, WebDriverException
 from googletrans import Translator, constants
 from datetime import datetime
+import schedule
+import time
 
 def get_data():
     ## get_data returns a dataframe df with the data shown
@@ -80,7 +82,11 @@ def get_data():
     return df
 
 def main(args):
-    get_data()
+    schedule.every(24).hours.do(get_data)
+    while True:
+        schedule.run_pending()
+        time.sleep(1)
+    #get_data()
     return 0
 
 if __name__ == '__main__':
