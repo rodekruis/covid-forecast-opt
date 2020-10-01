@@ -1,7 +1,7 @@
 # covid-forecast-palestine
 COVID-19 emergency support to Palestine Red Cross
 
-#covid_scraper_palestine.py
+# covid_scraper_palestine.py
 This script includes the function get_data() that scrapes the covid data in the main table of the website https://www.corona.ps/details .
 The table consists on covid data:
 Governorate|Number of cases|Cases Today|Active cases|recovery cases|Deaths|
