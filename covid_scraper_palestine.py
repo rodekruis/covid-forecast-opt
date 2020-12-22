@@ -28,7 +28,8 @@ from selenium.webdriver import Firefox
 from selenium.webdriver.firefox.options import Options
 from selenium.common.exceptions import \
     NoSuchElementException, TimeoutException, InvalidArgumentException, WebDriverException
-from googletrans import Translator, constants
+# from googletrans import Translator, constants
+from google_trans_new import google_translator
 from datetime import datetime
 import schedule
 import time
@@ -52,7 +53,8 @@ def get_data():
     #Find tables in webpage
     tables = soup.find_all("table")
     # init the Google API translator
-    translator = Translator()
+    # translator = Translator()
+    translator = google_translator()  
     #tables[4] has the necessary data
     table = tables[4]
     tab_data = [[cell.text for cell in row.find_all(["th","td"])]
@@ -61,13 +63,13 @@ def get_data():
     df = pd.DataFrame(tab_data)
     #translate the first row with titles
     for i in range(0, df.shape[1]):
-        translation =  translator.translate(df[i][0], dest="en")
-        df[i][0] = translation.text
+        translation =  translator.translate(df[i][0], lang_tgt="en")
+        df[i][0] = translation
     #now translate the 0th column (with governorates)
     for i in range(1, df.shape[0]):
-        translation =  translator.translate(df[0][i], dest="en")
-        df[0][i] = translation.text
-
+        translation =  translator.translate(df[0][i], lang_tgt="en")
+        df[0][i] = translation
+    
     #Header 
     df = df.rename(columns=df.iloc[0]).drop(df.index[0])
     
@@ -77,7 +79,7 @@ def get_data():
     name_df = 'COVID_ps_'+ timestampStr + '.csv'
     print('Dataframe generated\nSaved in '+ name_df)
     
-    df.to_csv(name_df)
+    df.to_csv('data/' + name_df)
     
     return df
 
