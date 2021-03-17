@@ -112,17 +112,15 @@ df_icu_inci = df_icu_inci[(df_icu_inci['date'] > pd.to_datetime(last_week)) & (d
 
 # calculate proportion of new cases (in the last 7 days) per district
 df_ps.iloc[:,2] = df_ps.iloc[:,2].astype(str).apply(lambda x: x.replace(',','')).astype(int) # 3th column contains new cases in the last 7 days, per district
-df_gaza = pd.DataFrame(columns=df_ps.columns)
 
 # Gaza breakdown
-gaza_governorates = ['Jabalia', 'Gaza City', 'Der Albalah', 'Khan Younis', 'Rafah']
+df_gaza = pd.DataFrame(columns=df_ps.columns)
+df_gaza.iloc[:,0] = ['Jabalia', 'Gaza City', 'Der Albalah', 'Khan Younis', 'Rafah']
 gaza_cases = [9237, 21101, 5564, 8399, 4611]
 gaza_ratios = [cases/48912 for cases in gaza_cases]          # figures from Jan 20, 2021
-
-for i in range(len(gaza_governorates)):
-    df_gaza.loc[i, 'Governorate '] = gaza_governorates[i]
-    df_gaza.loc[i, 'Cases today '] = float(df_ps[df_ps['Governorate ']=="Gaza strip "]['Cases today '].values)*gaza_ratios[i]
-    
+gaza_today = df_ps[df_ps['Governorate '].str.contains("Gaza")].iloc[0,2]
+df_gaza.iloc[:,2] = [gaza_today*i for i in gaza_ratios]  
+  
 df_ps = df_ps.append(df_gaza)
 df_ps = df_ps[~df_ps['Governorate '].isin(["Gaza strip "])]
     
@@ -156,7 +154,7 @@ ax1.set(title="ICU incidence forecast", xlabel="Date", ylabel="New cases")
 ax1.set_ylim(bottom=0)
 ax1.legend(bbox_to_anchor=(1.0, 1.0), loc='upper left')
 ax1.grid()
-fig1.savefig(str(today)+'_ICU_forecast.png', format='png')
+fig1.savefig('output/' + str(today)+'_ICU_forecast.png', format='png')
 
 for i, m in df_ps_week.groupby('Governorate '):
     fig, ax = plt.subplots(figsize=(15, 7))
@@ -173,7 +171,7 @@ for i, m in df_ps_week.groupby('Governorate '):
     ax.legend(bbox_to_anchor=(1.0, 1.0), loc='upper left')
     # ax.set_yscale('log')
     ax.grid()
-    fig.savefig(str(today) + str(i) + '_covid_forecast.png', dpi=300, format='png')
+    fig.savefig('output/' + str(today) + str(i) + '_covid_forecast.png', dpi=300, format='png')
 
 # folder_metadata = {
 #     'name': 'Palestine COVID forecast',
@@ -204,9 +202,9 @@ for i, m in df_ps_week.groupby('Governorate '):
 df_ps_week['date'] = df_ps_week['date'].dt.strftime('%Y%m%d')
 
 df_to_export = df_ps_week[['Governorate ', 'date', 'new_cases_min', 'new_cases_mean', 'new_cases_max']].reset_index(drop=True)
-df_to_export.to_csv(str(today) + '_covid_forecast.csv')
+df_to_export.to_csv('output/' + str(today) + '_covid_forecast.csv')
 df_icu_inci = df_icu_inci.rename(columns={'y_25' : 'icu_indicent_min', 'y_median': 'icu_indicent_mean', 'y_75': 'icu_indicent_max'}).reset_index(drop=True)
-df_icu_inci.to_csv(str(today) + '_ICUincident_forecast.csv')
+df_icu_inci.to_csv('output/' + str(today) + '_ICUincident_forecast.csv')
 
 ## reformat data and push to google sheets
 #data_to_upload = [['Governorate', 'Date', 'New Cases (min)', 'New Cases (mean)', 'New Cases (max)']] +\
