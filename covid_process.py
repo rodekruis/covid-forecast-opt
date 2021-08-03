@@ -10,7 +10,8 @@ import os
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
-from google_trans_new import google_translator
+# from google_trans_new import google_translator
+from googletrans import Translator
 import datetime
 today = datetime.date.today()
 last_week = today - datetime.timedelta(days=7)
@@ -59,19 +60,20 @@ else:
     df = pd.DataFrame(tab_data)
     
     # init the Google API translator
-    # translator = Translator()
-    translator = google_translator()
+    translator = Translator()
+    # translator = google_translator()
     
     #translate the first row with titles
     for i in range(0, df.shape[1]):
-        translation =  translator.translate(df[i][0], lang_tgt="en")
-        df[i][0] = translation
+        translation =  translator.translate(df[i][0], dest="en")
+        df[i][0] = translation.text
     #now translate the 0th column (with governorates)
     for i in range(1, df.shape[0]):
-        translation =  translator.translate(df[0][i], lang_tgt="en")
-        df[0][i] = translation
+        translation =  translator.translate(df[0][i], dest="en")
+        df[0][i] = translation.text
     
     #Header 
+    df.loc[0] = df.loc[0].str.strip()
     df_ps = df.rename(columns=df.iloc[0]).drop(df.index[0])
     
     # Returns a datetime object containing the local date and time
@@ -112,20 +114,29 @@ df_icu_inci = df_icu_inci[(df_icu_inci['date'] > pd.to_datetime(last_week)) & (d
 
 # calculate proportion of new cases (in the last 7 days) per district
 df_ps.iloc[:,2] = df_ps.iloc[:,2].astype(str).apply(lambda x: x.replace(',','')).astype(int) # 3th column contains new cases in the last 7 days, per district
+df_ps.iloc[:,1] = df_ps.iloc[:,1].astype(str).apply(lambda x: x.replace(',','')).astype(int) # 2th column contains all time total cases, per district
 
 # Gaza breakdown
+total_new_cases = df_ps.iloc[:,2].sum()
 df_gaza = pd.DataFrame(columns=df_ps.columns)
 df_gaza.iloc[:,0] = ['Jabalia', 'Gaza City', 'Der Albalah', 'Khan Younis', 'Rafah']
 gaza_cases = [9237, 21101, 5564, 8399, 4611]
 gaza_ratios = [cases/48912 for cases in gaza_cases]          # figures from Jan 20, 2021
-gaza_today = df_ps[df_ps['Governorate '].str.contains("Gaza")].iloc[0,2]
-df_gaza.iloc[:,2] = [gaza_today*i for i in gaza_ratios]  
-  
-df_ps = df_ps.append(df_gaza)
-df_ps = df_ps[~df_ps['Governorate '].isin(["Gaza strip "])]
-    
-total_new_cases = df_ps.iloc[:,2].sum()
-df_ps['proportion_new_cases'] = df_ps.iloc[:,2] / total_new_cases
+
+if total_new_cases != 0: 
+    gaza_today = df_ps[df_ps['Governorate'].str.contains("Gaza")].iloc[0,2]
+    df_gaza.iloc[:,2] = [gaza_today*i for i in gaza_ratios]  
+    df_ps = df_ps.append(df_gaza)
+    df_ps = df_ps[~df_ps['Governorate'].isin(["Gaza strip"])]
+    df_ps['proportion_new_cases'] = df_ps.iloc[:,2] / total_new_cases
+else:    
+    gaza_today = df_ps[df_ps['Governorate'].str.contains("Gaza")].iloc[0,1]
+    df_gaza.iloc[:,1] = [gaza_today*i for i in gaza_ratios]  
+    df_ps = df_ps.append(df_gaza)
+    df_ps = df_ps[~df_ps['Governorate'].isin(["Gaza strip"])]
+
+    total_new_cases = df_ps.iloc[:,1].sum()
+    df_ps['proportion_new_cases'] = df_ps.iloc[:,1] / total_new_cases
 
 df_ps_week = pd.DataFrame()
 
@@ -154,9 +165,9 @@ ax1.set(title="ICU incidence forecast", xlabel="Date", ylabel="New cases")
 ax1.set_ylim(bottom=0)
 ax1.legend(bbox_to_anchor=(1.0, 1.0), loc='upper left')
 ax1.grid()
-fig1.savefig('output/' + str(today)+'_ICU_forecast.png', format='png')
+# fig1.savefig('output/' + str(today)+'_ICU_forecast.png', format='png')
 
-for i, m in df_ps_week.groupby('Governorate '):
+for i, m in df_ps_week.groupby('Governorate'):
     fig, ax = plt.subplots(figsize=(15, 7))
     ax.plot(m['date'], m['new_cases_mean'], label=i)
     ax.fill_between(m['date'],
@@ -171,7 +182,7 @@ for i, m in df_ps_week.groupby('Governorate '):
     ax.legend(bbox_to_anchor=(1.0, 1.0), loc='upper left')
     # ax.set_yscale('log')
     ax.grid()
-    fig.savefig('output/' + str(today) + str(i) + '_covid_forecast.png', dpi=300, format='png')
+    # fig.savefig('output/' + str(today) + str(i) + '_covid_forecast.png', dpi=300, format='png')
 
 # folder_metadata = {
 #     'name': 'Palestine COVID forecast',
@@ -201,10 +212,10 @@ for i, m in df_ps_week.groupby('Governorate '):
 
 df_ps_week['date'] = df_ps_week['date'].dt.strftime('%Y%m%d')
 
-df_to_export = df_ps_week[['Governorate ', 'date', 'new_cases_min', 'new_cases_mean', 'new_cases_max']].reset_index(drop=True)
-df_to_export.to_csv('output/' + str(today) + '_covid_forecast.csv')
+df_to_export = df_ps_week[['Governorate', 'date', 'new_cases_min', 'new_cases_mean', 'new_cases_max']].reset_index(drop=True)
+# df_to_export.to_csv('output/' + str(today) + '_covid_forecast.csv')
 df_icu_inci = df_icu_inci.rename(columns={'y_25' : 'icu_indicent_min', 'y_median': 'icu_indicent_mean', 'y_75': 'icu_indicent_max'}).reset_index(drop=True)
-df_icu_inci.to_csv('output/' + str(today) + '_ICUincident_forecast.csv')
+# df_icu_inci.to_csv('output/' + str(today) + '_ICUincident_forecast.csv')
 
 ## reformat data and push to google sheets
 #data_to_upload = [['Governorate', 'Date', 'New Cases (min)', 'New Cases (mean)', 'New Cases (max)']] +\
