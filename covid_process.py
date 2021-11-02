@@ -50,6 +50,8 @@ if not tables:
     # os.chdir("data")
     file_list = glob.glob("data/COVID_ps_*.csv")
     table = max(file_list, key=os.path.getctime)
+    timestampStr = table.split('_')[-1].split('.')[0]
+    df_ps_latest = False
     df_ps = pd.read_csv(table)
 else:
     #tables[4] has the necessary data
@@ -78,6 +80,7 @@ else:
     
     # Returns a datetime object containing the local date and time
     # dateTimeObj = datetime.now()
+    df_ps_latest = True
     dateTimeObj = today
     timestampStr = dateTimeObj.strftime("%d-%b-%Y")
     name_df = 'COVID_ps_'+ timestampStr + '.csv'
@@ -118,25 +121,26 @@ df_ps.iloc[:,1] = df_ps.iloc[:,1].astype(str).apply(lambda x: x.replace(',',''))
 
 # Gaza breakdown
 total_new_cases = df_ps.iloc[:,2].sum()
-df_gaza = pd.DataFrame(columns=df_ps.columns)
-df_gaza.iloc[:,0] = ['Jabalia', 'Gaza City', 'Der Albalah', 'Khan Younis', 'Rafah']
-gaza_cases = [9237, 21101, 5564, 8399, 4611]
-gaza_ratios = [cases/48912 for cases in gaza_cases]          # figures from Jan 20, 2021
+# df_gaza = pd.DataFrame(columns=df_ps.columns)
+# df_gaza.iloc[:,0] = ['Jabalia', 'Gaza City', 'Der Albalah', 'Khan Younis', 'Rafah']
+# gaza_cases = [9237, 21101, 5564, 8399, 4611]
+# gaza_ratios = [cases/48912 for cases in gaza_cases]          # figures from Jan 20, 2021
 
-if total_new_cases != 0: 
-    gaza_today = df_ps[df_ps['Governorate'].str.contains("Gaza")].iloc[0,2]
-    df_gaza.iloc[:,2] = [gaza_today*i for i in gaza_ratios]  
-    df_ps = df_ps.append(df_gaza)
-    df_ps = df_ps[~df_ps['Governorate'].isin(["Gaza strip"])]
+if total_new_cases != 0:
+    # gaza_today = df_ps[df_ps['Governorate'].str.contains("Gaza")].iloc[0,2]
+    # df_gaza.iloc[:,2] = [gaza_today*i for i in gaza_ratios]  
+    # df_ps = df_ps.append(df_gaza)
+    # df_ps = df_ps[~df_ps['Governorate'].isin(["Gaza strip"])]
     df_ps['proportion_new_cases'] = df_ps.iloc[:,2] / total_new_cases
+    table_updated = True
 else:    
-    gaza_today = df_ps[df_ps['Governorate'].str.contains("Gaza")].iloc[0,1]
-    df_gaza.iloc[:,1] = [gaza_today*i for i in gaza_ratios]  
-    df_ps = df_ps.append(df_gaza)
-    df_ps = df_ps[~df_ps['Governorate'].isin(["Gaza strip"])]
-
+    # gaza_today = df_ps[df_ps['Governorate'].str.contains("Gaza")].iloc[0,1]
+    # df_gaza.iloc[:,1] = [gaza_today*i for i in gaza_ratios]  
+    # df_ps = df_ps.append(df_gaza)
+    # df_ps = df_ps[~df_ps['Governorate'].isin(["Gaza strip"])]
     total_new_cases = df_ps.iloc[:,1].sum()
     df_ps['proportion_new_cases'] = df_ps.iloc[:,1] / total_new_cases
+    table_updated = False
 
 df_ps_week = pd.DataFrame()
 
@@ -155,31 +159,52 @@ for i in range(len(df_new_cases)):
     
 
 
-fig1, ax1 = plt.subplots(figsize=(20, 10), dpi=300)
-ax1.plot(df_icu_inci['date'], df_icu_inci['y_median'], color="crimson", label=i)
-ax1.fill_between(df_icu_inci['date'],
-        df_icu_inci['y_25'],
-        df_icu_inci['y_75'], color="crimson", alpha=0.35)
+fig1, ax1 = plt.subplots(figsize=(15, 7))#, dpi=300)
 ax1.axvline(today, linestyle='dashed', label="Today", color="k")
-ax1.set(title="ICU incidence forecast", xlabel="Date", ylabel="New cases")
+ax1.plot(df_icu_inci['date'], df_icu_inci['y_median'], color="crimson", label='Median ICU incidence')
+ax1.fill_between(df_icu_inci['date'],
+                 df_icu_inci['y_25'],
+                 df_icu_inci['y_75'], 
+                 label='Confidence range', color="crimson", alpha=0.35)
+ax1.set_title("NEW ICU INCIDENCE FORECAST", fontweight='bold', fontsize=16)
+ax1.set(xlabel="Date", ylabel="New cases")
 ax1.set_ylim(bottom=0)
-ax1.legend(bbox_to_anchor=(1.0, 1.0), loc='upper left')
+ax1.legend(loc='upper right')#, bbox_to_anchor=(1.0, 1.0))
+plt.gcf().text(0.02, 0.05, 'Imperial College London data used here is up-to-date on {0}.'.format(timestampStr))
+if df_ps_latest and table_updated:
+    plt.gcf().text(0.02, 0.02, 'Corona.ps data used here is up-to-date on {0}.'.format(timestampStr))
+elif df_ps_latest and not table_updated:
+    plt.gcf().text(0.02, 0.02, 'Corona.ps data used here is not yet updated on {0}. Forecast is made with Total cases instead of Today new cases.'.format(timestampStr))
+elif not df_ps_latest:
+    plt.gcf().text(0.02, 0.02, 'Site corona.ps is temporarily inaccessible. Forecast is made with data from corona.ps on {0}.'.format(timestampStr))        
 ax1.grid()
 # fig1.savefig('output/' + str(today)+'_ICU_forecast.png', format='png')
 
 for i, m in df_ps_week.groupby('Governorate'):
     fig, ax = plt.subplots(figsize=(15, 7))
-    ax.plot(m['date'], m['new_cases_mean'], label=i)
+    ax.plot(m['date'], m['new_cases_mean'], label='Median cases')
     ax.fill_between(m['date'],
             m['new_cases_min'],
-            m['new_cases_max'], alpha=0.35)
+            m['new_cases_max'], 
+            label='Confidence range', alpha=0.35)
     # print(i, m)
     # for j in range(len(m)):
     #     print(m.loc[j,'date'], m.loc[j,'new_cases_mean'])
     #     ax.text(m.loc[j,'date'], m.loc[j,'new_cases_mean']+0.1, "%d" %m.loc[j,'new_cases_mean'])
     ax.axvline(today, linestyle='dashed', label="Today", color="k")
-    ax.set(title="COVID cases forecast "+ str(i), xlabel="Date", ylabel="New cases")
-    ax.legend(bbox_to_anchor=(1.0, 1.0), loc='upper left')
+    ax.set_title("NEW COVID-19 CASES FORECAST \n {0}".format(str(i)), fontweight='bold', fontsize=16)
+    ax.set(xlabel="Date", ylabel="New cases")
+    ax.legend(loc='upper right')#bbox_to_anchor=(1.0, 1.0)
+    ax.set_ylim([round(m['new_cases_min'].min() - m['new_cases_min'].min()*0.2),
+                 round(m['new_cases_max'].max() + m['new_cases_max'].max()*0.2)])    
+    plt.gcf().text(0.02, 0.05, 'Imperial College London data used here is up-to-date on {0}.'.format(timestampStr))
+    if df_ps_latest and table_updated:
+        plt.gcf().text(0.02, 0.02, 'Corona.ps data used here is up-to-date on {0}.'.format(timestampStr))
+    elif df_ps_latest and not table_updated:
+        plt.gcf().text(0.02, 0.02, 'Corona.ps data used here is not yet updated on {0}. Forecast is made with Total cases instead of Today new cases.'.format(timestampStr))
+    elif not df_ps_latest:
+        plt.gcf().text(0.02, 0.02, 'Site corona.ps is temporarily inaccessible. Forecast is made with data from corona.ps on {0}.'.format(timestampStr))        
+        
     # ax.set_yscale('log')
     ax.grid()
     # fig.savefig('output/' + str(today) + str(i) + '_covid_forecast.png', dpi=300, format='png')
